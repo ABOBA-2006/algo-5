@@ -142,7 +142,7 @@ def evolution():
         mutant = child.copy()
 
         choice = random.randint(0, 1)
-        if choice == 0 and mutant[random_number] != 0:
+        if (choice == 0 and mutant[random_gen] != 0) or mutant[random_gen] == MAX_DUPLICATE:
             mutant[random_gen] -= 1
             mutant_fitness = child_fitness - Backpack[random_gen].price
             mutant_weight = child_weight - Backpack[random_gen].weight
@@ -153,6 +153,8 @@ def evolution():
 
         if mutant_fitness > child_fitness and mutant_weight < P:
             child = mutant
+            child_fitness = mutant_fitness
+            child_weight = mutant_weight
 
     # local upgrading
     child, child_weight, child_fitness = local_improvement(child, [obj.weight for obj in Backpack],
