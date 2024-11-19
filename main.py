@@ -2,6 +2,7 @@ import random
 import json
 import matplotlib.pyplot as plt
 
+
 P = 500
 N = 100
 MIN_PRICE = 2
@@ -10,7 +11,14 @@ MIN_WEIGHT = 1
 MAX_WEIGHT = 20
 MAX_DUPLICATE = 5
 CROSSOVER_OPERATOR = 50
+FIRST_CROSSOVER = False
+SECOND_CROSSOVER = False
+THIRD_CROSSOVER = True
 CROSSOVER_OPERATOR2 = [33, 66]
+MUTATION1 = False
+MUTATION2 = True
+LOCAL_UP1 = False
+LOCAL_UP2 = True
 MUTATION_PROBABILITY = 5
 ITERATIONS = 1000
 LOAD_FROM_FILE = True
@@ -102,13 +110,20 @@ def local_improvement(individual, weights, values, child_weight, child_fitness):
 
     best_item = -1
     best_ratio = 0
+    max_price = -1
 
     for i in range(len(individual)):
         if individual[i] < MAX_DUPLICATE:
-            ratio = values[i] / weights[i]
-            if ratio > best_ratio and child_weight + weights[i] <= P:
-                best_ratio = ratio
-                best_item = i
+            if LOCAL_UP1:
+                ratio = values[i] / weights[i]
+                if ratio > best_ratio and child_weight + weights[i] <= P:
+                    best_ratio = ratio
+                    best_item = i
+            elif LOCAL_UP2:
+                if child_weight + weights[i] <= P:
+                    if max_price < values[i]:
+                        max_price = values[i]
+                        best_item = i
 
     if best_item != -1:
         while individual[best_item] < MAX_DUPLICATE:
@@ -128,34 +143,54 @@ def evolution():
     max_index = Fitness.index(max_fitness)
     random_fitness, random_index = roulette_wheel_selection(Fitness)
 
-    # crossover #1
-    first_half = Population[max_index][:CROSSOVER_OPERATOR]
-    second_half = Population[random_index][CROSSOVER_OPERATOR:]
-    child = first_half + second_half
+    # crossover
+    child = []
+    if FIRST_CROSSOVER:
+        first_half = Population[max_index][:CROSSOVER_OPERATOR]
+        second_half = Population[random_index][CROSSOVER_OPERATOR:]
+        child = first_half + second_half
+    elif SECOND_CROSSOVER:
+        first_part = Population[max_index][:CROSSOVER_OPERATOR2[0]]
+        middle_part = Population[random_index][CROSSOVER_OPERATOR2[0]:CROSSOVER_OPERATOR2[1]]
+        last_part = Population[max_index][CROSSOVER_OPERATOR2[1]:]
+        child = first_part + middle_part + last_part
+    elif THIRD_CROSSOVER:
+        for i in range(N):
+            choice = random.randint(0, 1)
+            if choice == 0:
+                child.append(Population[max_index][i])
+            else:
+                child.append(Population[random_index][i])
     child_fitness, child_weight = calc_fitness_weight(child)
-    print(child_weight)
+
 
     # mutation
     random_number = random.randint(1, 100)
     if random_number <= MUTATION_PROBABILITY:
-        random_gen = random.randint(0, N-1)
+        random_gen = random.randint(0, N - 1)
         mutant = child.copy()
+        mutant_weight, mutant_fitness = 0,0;
 
-        choice = random.randint(0, 1)
-        if (choice == 0 and mutant[random_gen] != 0) or mutant[random_gen] == MAX_DUPLICATE:
-            mutant[random_gen] -= 1
-            mutant_fitness = child_fitness - Backpack[random_gen].price
-            mutant_weight = child_weight - Backpack[random_gen].weight
-        else:
-            mutant[random_gen] += 1
-            mutant_fitness = child_fitness + Backpack[random_gen].price
-            mutant_weight = child_weight + Backpack[random_gen].weight
+        if MUTATION1:
+            choice = random.randint(0, 1)
+            if (choice == 0 and mutant[random_gen] != 0) or mutant[random_gen] == MAX_DUPLICATE:
+                mutant[random_gen] -= 1
+                mutant_fitness = child_fitness - Backpack[random_gen].price
+                mutant_weight = child_weight - Backpack[random_gen].weight
+            else:
+                mutant[random_gen] += 1
+                mutant_fitness = child_fitness + Backpack[random_gen].price
+                mutant_weight = child_weight + Backpack[random_gen].weight
+
+        elif MUTATION2:
+            random_gen_value = random.randint(0, MAX_DUPLICATE)
+            mutant_fitness = child_fitness + Backpack[random_gen].price*(random_gen_value-child[random_gen])
+            mutant_weight = child_weight + Backpack[random_gen].weight*(random_gen_value-child[random_gen])
 
         if mutant_fitness > child_fitness and mutant_weight < P:
             child = mutant
             child_fitness = mutant_fitness
             child_weight = mutant_weight
-
     # local upgrading
     child, child_weight, child_fitness = local_improvement(child, [obj.weight for obj in Backpack],
                                                            [obj.price for obj in Backpack], child_weight, child_fitness)
